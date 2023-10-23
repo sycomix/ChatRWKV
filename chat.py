@@ -13,7 +13,7 @@ np.set_printoptions(precision=4, suppress=True, linewidth=200)
 args = types.SimpleNamespace()
 
 print('\n\nChatRWKV project: https://github.com/BlinkDL/ChatRWKV')
-for i in range(10):
+for _ in range(10):
     print('NOTE: This code is v1 and only for reference. Use v2 instead.')
 
 import torch
@@ -44,24 +44,10 @@ QA_PROMPT = False # True: Q & A prompt // False: User & Bot prompt
 
 # Download RWKV-4 models from https://huggingface.co/BlinkDL (don't use Instruct-test models unless you use their prompt templates)
 
-if CHAT_LANG == 'English':
-    args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-14b/RWKV-4-Pile-14B-20230228-ctx4096-test663'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221110-ctx4096'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220903-8040'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-430m/RWKV-4-Pile-430M-20220808-8066'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-169m/RWKV-4-Pile-169M-20220807-8023'
-    # args.MODEL_NAME = '/fsx/BlinkDL/CODE/_PUBLIC_/RWKV-LM/RWKV-v4neo/7-run1z/rwkv-340'
-    # args.MODEL_NAME = '/fsx/BlinkDL/CODE/_PUBLIC_/RWKV-LM/RWKV-v4neo/14b-run1/rwkv-6210'
-
-elif CHAT_LANG == 'Chinese': # testNovel系列是网文模型，请只用 +gen 指令续写。test4 系列可以问答（只用了小中文语料微调，纯属娱乐）
+if CHAT_LANG == 'Chinese':
     args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-EngChn-testNovel-441-ctx2048-20230217'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-EngChn-testNovel-711-ctx2048-20230216'
-    # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-EngChn-testNovel-671-ctx2048-20230216'
-    # args.MODEL_NAME = '/fsx/BlinkDL/CODE/_PUBLIC_/RWKV-LM/RWKV-v4neo/7-run1z/rwkv-973'
-    # args.MODEL_NAME = '/fsx/BlinkDL/CODE/_PUBLIC_/RWKV-LM/RWKV-v4neo/3-run1z/rwkv-711'
-    # args.MODEL_NAME = '/fsx/BlinkDL/CODE/_PUBLIC_/RWKV-LM/RWKV-v4neo/1.5-run1z/rwkv-671'
-
+elif CHAT_LANG == 'English':
+    args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-14b/RWKV-4-Pile-14B-20230228-ctx4096-test663'
 args.ctx_len = 1024
 
 CHAT_LEN_SHORT = 40
@@ -89,7 +75,69 @@ args.grad_cp = 0
 args.my_pos_emb = 0
 MODEL_NAME = args.MODEL_NAME
 
-if CHAT_LANG == 'English':
+if CHAT_LANG == 'Chinese':
+    interface = ":"
+    if QA_PROMPT:
+        user = "Q"
+        bot = "A"
+        init_prompt = '''
+Expert Questions & Helpful Answers
+
+Ask Research Experts
+
+'''
+    else:
+        user = "User"
+        bot = "Bot"
+        init_prompt = f'''
+The following is a verbose and detailed conversation between an AI assistant called {bot}, and a human user called {user}. {bot} is intelligent, knowledgeable, wise and polite.
+
+{user}{interface} wat is lhc
+
+{bot}{interface} LHC is a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
+
+{user}{interface} 企鹅会飞吗
+
+{bot}{interface} 企鹅是不会飞的。它们的翅膀主要用于游泳和平衡，而不是飞行。
+
+'''
+    HELP_MSG = f'''指令:
+
+直接输入内容 --> 和机器人聊天（建议问机器人问题），用\\n代表换行
++ --> 让机器人换个回答
++reset --> 重置对话
+
++gen 某某内容 --> 续写任何中英文内容，用\\n代表换行
++qa 某某问题 --> 问独立的问题（忽略上下文），用\\n代表换行
++qq 某某问题 --> 问独立的问题（忽略上下文），且敞开想象力，用\\n代表换行
++++ --> 继续 +gen / +qa / +qq 的回答
+++ --> 换个 +gen / +qa / +qq 的回答
+
+作者：彭博 请关注我的知乎: https://zhuanlan.zhihu.com/p/603840957
+
+如果喜欢，请看我们的优质护眼灯: https://withablink.taobao.com
+
+现在可以输入内容和机器人聊天（注意它不大懂中文，它更懂英文）。请经常使用 +reset 重置机器人记忆。
+目前没有“重复惩罚”，所以机器人有时会重复，此时必须使用 + 换成正常回答，以免污染电脑记忆。
+注意：和上下文无关的独立问题，必须用 +qa 或 +qq 问，以免污染电脑记忆。
+
+请先试下列咒语，理解咒语的写法。咒语至关重要。
+
+中文网文【testNovel】模型，试下面这些，注意，必须是【testNovel】模型：
++gen 这是一颗
++gen 以下是不朽的科幻史诗长篇巨著，描写细腻，刻画了数百位个性鲜明的英雄和宏大的星际文明战争。\\n第一章
++gen 这是一个修真世界，详细世界设定如下：\\n1.
+
+中文问答【test数字】模型，试下面这些，注意，必须是【test数字】模型：
++gen \\n活动出席发言稿：\\n大家好，
++gen \\n怎样创立一家快速盈利的AI公司：\\n1.
++gen \\nimport torch
++qq 请以《我的驴》为题写一篇作文
++qq 请以《企鹅》为题写一首诗歌
++qq 请设定一个奇幻世界，告诉我详细的世界设定。
+'''
+
+elif CHAT_LANG == 'English':
     interface = ":"
 
     if QA_PROMPT:
@@ -150,68 +198,6 @@ This is not instruct-tuned for conversation yet, so don't expect good quality. B
 
 Prompt is VERY important. Try all prompts on https://github.com/BlinkDL/ChatRWKV first.
 '''
-elif CHAT_LANG == 'Chinese':
-    interface = ":"
-    if QA_PROMPT:
-        user = "Q"
-        bot = "A"
-        init_prompt = f'''
-Expert Questions & Helpful Answers
-
-Ask Research Experts
-
-'''
-    else:
-        user = "User"
-        bot = "Bot"
-        init_prompt = f'''
-The following is a verbose and detailed conversation between an AI assistant called {bot}, and a human user called {user}. {bot} is intelligent, knowledgeable, wise and polite.
-
-{user}{interface} wat is lhc
-
-{bot}{interface} LHC is a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
-
-{user}{interface} 企鹅会飞吗
-
-{bot}{interface} 企鹅是不会飞的。它们的翅膀主要用于游泳和平衡，而不是飞行。
-
-'''
-    HELP_MSG = f'''指令:
-
-直接输入内容 --> 和机器人聊天（建议问机器人问题），用\\n代表换行
-+ --> 让机器人换个回答
-+reset --> 重置对话
-
-+gen 某某内容 --> 续写任何中英文内容，用\\n代表换行
-+qa 某某问题 --> 问独立的问题（忽略上下文），用\\n代表换行
-+qq 某某问题 --> 问独立的问题（忽略上下文），且敞开想象力，用\\n代表换行
-+++ --> 继续 +gen / +qa / +qq 的回答
-++ --> 换个 +gen / +qa / +qq 的回答
-
-作者：彭博 请关注我的知乎: https://zhuanlan.zhihu.com/p/603840957
-
-如果喜欢，请看我们的优质护眼灯: https://withablink.taobao.com
-
-现在可以输入内容和机器人聊天（注意它不大懂中文，它更懂英文）。请经常使用 +reset 重置机器人记忆。
-目前没有“重复惩罚”，所以机器人有时会重复，此时必须使用 + 换成正常回答，以免污染电脑记忆。
-注意：和上下文无关的独立问题，必须用 +qa 或 +qq 问，以免污染电脑记忆。
-
-请先试下列咒语，理解咒语的写法。咒语至关重要。
-
-中文网文【testNovel】模型，试下面这些，注意，必须是【testNovel】模型：
-+gen 这是一颗
-+gen 以下是不朽的科幻史诗长篇巨著，描写细腻，刻画了数百位个性鲜明的英雄和宏大的星际文明战争。\\n第一章
-+gen 这是一个修真世界，详细世界设定如下：\\n1.
-
-中文问答【test数字】模型，试下面这些，注意，必须是【test数字】模型：
-+gen \\n活动出席发言稿：\\n大家好，
-+gen \\n怎样创立一家快速盈利的AI公司：\\n1.
-+gen \\nimport torch
-+qq 请以《我的驴》为题写一篇作文
-+qq 请以《企鹅》为题写一首诗歌
-+qq 请设定一个奇幻世界，告诉我详细的世界设定。
-'''
-
 # Load Model
 
 print(f'Loading model - {MODEL_NAME}')
@@ -248,9 +234,7 @@ def run_rnn(tokens, newline_adj = 0):
 all_state = {}
 def save_all_stat(srv, name, last_out):
     n = f'{name}_{srv}'
-    all_state[n] = {}
-    all_state[n]['out'] = last_out
-    all_state[n]['rnn'] = copy.deepcopy(model_state)
+    all_state[n] = {'out': last_out, 'rnn': copy.deepcopy(model_state)}
     all_state[n]['token'] = copy.deepcopy(model_tokens)
 
 def load_all_stat(srv, name):
@@ -291,19 +275,15 @@ def on_message(message):
     x_top_p = GEN_TOP_P
     if ("-temp=" in msg):
         x_temp = float(msg.split("-temp=")[1].split(" ")[0])
-        msg = msg.replace("-temp="+f'{x_temp:g}', "")
-        # print(f"temp: {x_temp}")
+        msg = msg.replace(f'-temp={x_temp:g}', "")
+            # print(f"temp: {x_temp}")
     if ("-top_p=" in msg):
         x_top_p = float(msg.split("-top_p=")[1].split(" ")[0])
-        msg = msg.replace("-top_p="+f'{x_top_p:g}', "")
-        # print(f"top_p: {x_top_p}")
-    if x_temp <= 0.2:
-        x_temp = 0.2
-    if x_temp >= 5:
-        x_temp = 5
-    if x_top_p <= 0:
-        x_top_p = 0
-    
+        msg = msg.replace(f'-top_p={x_top_p:g}', "")
+            # print(f"top_p: {x_top_p}")
+    x_temp = max(x_temp, 0.2)
+    x_temp = min(x_temp, 5)
+    x_top_p = max(x_top_p, 0)
     if msg == '+reset':
         out = load_all_stat('', 'chat_init')
         save_all_stat(srv, 'chat', out)
@@ -334,7 +314,7 @@ def on_message(message):
             real_msg = msg[4:].strip()
             new = f"{user}{interface} {real_msg}\n\n{bot}{interface}"
             # print(f'### qa ###\n[{new}]')
-            
+
             out = run_rnn(tokenizer.encode(new))
             save_all_stat(srv, 'gen_0', out)
 
@@ -365,7 +345,7 @@ def on_message(message):
                 out = run_rnn([token], newline_adj=-2)
             else:
                 out = run_rnn([token])
-            
+
             xxx = tokenizer.decode(model_tokens[out_last:])
             if '\ufffd' not in xxx: # avoid utf-8 display issues
                 print(xxx, end='', flush=True)
@@ -416,12 +396,12 @@ def on_message(message):
             if '\ufffd' not in xxx: # avoid utf-8 display issues
                 print(xxx, end='', flush=True)
                 out_last = begin + i + 1
-            
+
             send_msg = tokenizer.decode(model_tokens[begin:])
             if '\n\n' in send_msg:
                 send_msg = send_msg.strip()
                 break
-            
+
             # send_msg = tokenizer.decode(model_tokens[begin:]).strip()
             # if send_msg.endswith(f'{user}{interface}'): # warning: needs to fix state too !!!
             #     send_msg = send_msg[:-len(f'{user}{interface}')].strip()

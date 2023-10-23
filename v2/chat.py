@@ -147,7 +147,7 @@ def run_rnn(tokens, newline_adj = 0):
     model_tokens += tokens
     # print(f'### model ###\n{tokens}\n[{pipeline.decode(model_tokens)}]')
 
-    while len(tokens) > 0:
+    while tokens:
         out, model_state = model.forward(tokens[:CHUNK_LEN], model_state)
         tokens = tokens[CHUNK_LEN:]
 
@@ -160,9 +160,7 @@ def run_rnn(tokens, newline_adj = 0):
 all_state = {}
 def save_all_stat(srv, name, last_out):
     n = f'{name}_{srv}'
-    all_state[n] = {}
-    all_state[n]['out'] = last_out
-    all_state[n]['rnn'] = copy.deepcopy(model_state)
+    all_state[n] = {'out': last_out, 'rnn': copy.deepcopy(model_state)}
     all_state[n]['token'] = copy.deepcopy(model_tokens)
 
 def load_all_stat(srv, name):

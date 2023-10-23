@@ -28,13 +28,11 @@ class RWKV_RNN(torch.jit.ScriptModule):
         super().__init__()
         self.args = args
         self.eval() # set torch to inference mode
-        
-        w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu')
+
+        w = torch.load(f'{args.MODEL_NAME}.pth', map_location='cpu')
         for k in w.keys():
             if      '.time_' in k: w[k] = w[k].squeeze()
-            if '.time_decay' in k: w[k] = -torch.exp(w[k].float()) # the real time decay is like e^{-e^x}
-            else: w[k] = w[k].float() # convert to f32 type
-        
+            w[k] = -torch.exp(w[k].float()) if '.time_decay' in k else w[k].float()
         self.w = types.SimpleNamespace() # set self.w from w
         self.w.blocks = {}
         for k in w.keys(): # example: "blocks.0.att.time_first" => self.w.blocks[0].att.time_first
@@ -94,10 +92,10 @@ class RWKV_RNN(torch.jit.ScriptModule):
 
     def forward(self, token, state):
         with torch.no_grad():
-            if state == None:
+            if state is None:
                 state = torch.zeros(self.args.n_layer * 5, self.args.n_embd)
                 for i in range(self.args.n_layer): state[5*i+4] = -1e30 # -infinity
-            
+
             x = self.w.emb.weight[token]
             x = self.layer_norm(x, self.w.blocks[0].ln0)
             for i in range(self.args.n_layer):
@@ -109,7 +107,7 @@ class RWKV_RNN(torch.jit.ScriptModule):
                 x = x + self.channel_mixing(self.layer_norm(x, self.w.blocks[i].ln2), state, i, 
                     ffn.time_mix_k, ffn.time_mix_r, 
                     ffn.key.weight, ffn.value.weight, ffn.receptance.weight)
-            
+
             x = self.w.head.weight @ self.layer_norm(x, self.w.ln_out)
             return x.float(), state
 

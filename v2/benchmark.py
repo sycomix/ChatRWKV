@@ -96,7 +96,7 @@ def record_time(name):
     if tt < time_slot[name]:
         time_slot[name] = tt
 
-for i in range(10):
+for _ in range(10):
     time_ref = time.time_ns()
     out, state = model.forward(init_token, None)
     aa = out.detach().cpu().numpy()
@@ -116,9 +116,8 @@ for i in range(10):
 
 print('Check LAMBADA...')
 xsum = 0
-xcnt = 0
 xacc = 0
-for d in todo:
+for xcnt, d in enumerate(todo, start=1):
     src = PAD_SEQ + pipeline.encode(d[0])
     dst = pipeline.encode(d[1])
 
@@ -131,7 +130,6 @@ for d in todo:
         if torch.argmax(probs).item() != dst[i]:
             correct = False
 
-    xcnt += 1
     xsum += logits
     xacc += 1 if correct else 0
     if xcnt % 100 == 0 or xcnt == len(todo):

@@ -63,7 +63,6 @@ class PIPELINE():
                 probs = probs ** (1.0 / temperature)
             probs = probs / np.sum(probs)
             out = np.random.choice(a=len(probs), p=probs)
-            return int(out)
         else:
             sorted_ids = torch.argsort(probs)
             sorted_probs = probs[sorted_ids]
@@ -76,7 +75,8 @@ class PIPELINE():
             if temperature != 1.0:
                 probs = probs ** (1.0 / temperature)
             out = torch.multinomial(probs, num_samples=1)[0]
-            return int(out)
+
+        return int(out)
     
     def generate(self, ctx, token_count=100, args=PIPELINE_ARGS(), callback=None, state=None):
         all_tokens = []
